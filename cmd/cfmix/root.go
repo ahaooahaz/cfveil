@@ -8,9 +8,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "annal",
-	Short: "annal tools.",
-	Long:  `annal tools for everything.`,
+	Use:   "cfmix",
+	Short: "mix code file and package.",
+	Long:  `mix code file and package.`,
 }
 
 func Execute() {
