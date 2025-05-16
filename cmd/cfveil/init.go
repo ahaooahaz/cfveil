@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/ahaooahaz/cfmix/cmd/cfmix/child/python"
+	"github.com/ahaooahaz/cfveil/cmd/cfveil/python"
 
 	"github.com/sirupsen/logrus"
 )
@@ -17,7 +17,7 @@ func init() {
 }
 
 func initEnv() (err error) {
-	logrus.SetLevel(logrus.InfoLevel)
+	logrus.SetLevel(logrus.DebugLevel)
 	logrus.SetReportCaller(true)
 	logrus.SetFormatter(&logrus.JSONFormatter{
 		TimestampFormat: "2006-01-02 15:04:05",

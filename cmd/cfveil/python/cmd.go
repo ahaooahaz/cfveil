@@ -2,111 +2,79 @@ package python
 
 import (
 	"bufio"
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"regexp"
 	"strings"
 
-	"path/filepath"
-
+	"github.com/ahaooahaz/cfveil/internal/python"
 	"github.com/spf13/cobra"
 )
 
 var Cmd = &cobra.Command{
-	Use:   "python",
-	Short: "python project.",
-	Long:  `python project.`,
+	Use:     "python",
+	Short:   "python project.",
+	Long:    `python project.`,
+	Aliases: []string{"py"},
 	Run: func(cmd *cobra.Command, args []string) {
 		if *arg_INPUT == "" || *arg_OUTPUT == "" {
 			fmt.Println("invalid")
 			return
 		}
 
-		root, err := filepath.Abs(*arg_INPUT)
+		err := python.Process(*arg_INPUT, *arg_OUTPUT, *arg_EXCLUDE)
 		if err != nil {
-			panic(err)
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
 		}
 
-		excludes := make(map[string]bool)
-		if *arg_EXCLUDE != nil {
-			for _, v := range *arg_EXCLUDE {
-				p := filepath.Join(root, v)
-				excludes[p] = true
-			}
-		}
+		return
 
-		pyFiles := make(map[string]string)
-		err = filepath.WalkDir(root, func(path string, d fs.DirEntry, ie error) error {
-			if ie != nil {
-				return ie
-			}
+		// xs := []*X{}
+		// for k, v := range pyFiles {
+		// 	x := &X{}
+		// 	x.Src = v
 
-			if _, ok := excludes[path]; ok {
-				return filepath.SkipDir
-			}
+		// 	{
+		// 		info, _ := os.Stat(v)
+		// 		suffix := ""
+		// 		if !info.IsDir() {
+		// 			suffix = ".py"
+		// 		}
+		// 		s := k
+		// 		idx := strings.LastIndex(s, ".")
+		// 		if idx != -1 {
+		// 			s = s[:idx]
+		// 		}
 
-			if !d.IsDir() && strings.HasSuffix(path, ".py") {
-				p, _ := filepath.Rel(root, path)
-				pyFiles[p] = path
-				d := filepath.Dir(p)
-				if d != "." {
-					pyFiles[d] = path
-				}
-			}
-			return ie
-		})
-		if err != nil {
-			panic(err)
-		}
+		// 		x.ImportSrc = strings.ReplaceAll(s, "/", ".")
+		// 		parts := strings.Split(x.ImportSrc, ".")
+		// 		for i := 0; i < len(parts); i++ {
+		// 			hash := md5.Sum([]byte(parts[i]))
+		// 			parts[i] = "x" + hex.EncodeToString(hash[:])
+		// 		}
+		// 		x.ImportDst = strings.Join(parts, ".")
 
-		xs := []*X{}
-		for k, v := range pyFiles {
-			x := &X{}
-			x.Src = v
+		// 		parts = strings.Split(s, "/")
+		// 		for i := 0; i < len(parts); i++ {
+		// 			hash := md5.Sum([]byte(parts[i]))
+		// 			parts[i] = "x" + hex.EncodeToString(hash[:])
+		// 		}
+		// 		x.Dst = strings.Join(parts, "/")
+		// 		x.Dst += suffix
+		// 	}
+		// 	xs = append(xs, x)
+		// }
 
-			{
-				info, _ := os.Stat(v)
-				suffix := ""
-				if !info.IsDir() {
-					suffix = ".py"
-				}
-				s := k
-				idx := strings.LastIndex(s, ".")
-				if idx != -1 {
-					s = s[:idx]
-				}
-
-				x.ImportSrc = strings.ReplaceAll(s, "/", ".")
-				parts := strings.Split(x.ImportSrc, ".")
-				for i := 0; i < len(parts); i++ {
-					hash := md5.Sum([]byte(parts[i]))
-					parts[i] = "x" + hex.EncodeToString(hash[:])
-				}
-				x.ImportDst = strings.Join(parts, ".")
-
-				parts = strings.Split(s, "/")
-				for i := 0; i < len(parts); i++ {
-					hash := md5.Sum([]byte(parts[i]))
-					parts[i] = "x" + hex.EncodeToString(hash[:])
-				}
-				x.Dst = strings.Join(parts, "/")
-				x.Dst += suffix
-			}
-			xs = append(xs, x)
-		}
-
-		for _, x := range xs {
-			dstfile := "dist/" + x.Dst
-			if err := os.MkdirAll(filepath.Dir(dstfile), os.ModePerm); err != nil {
-				panic(err)
-			}
-			CopyFile(x.Src, dstfile)
-			processFile(dstfile, xs)
-		}
+		// for _, x := range xs {
+		// 	dstfile := "dist/" + x.Dst
+		// 	if err := os.MkdirAll(filepath.Dir(dstfile), os.ModePerm); err != nil {
+		// 		panic(err)
+		// 	}
+		// 	CopyFile(x.Src, dstfile)
+		// 	processFile(dstfile, xs)
+		// }
 	},
 }
 

@@ -1,4 +1,4 @@
-module github.com/ahaooahaz/cfmix
+module github.com/ahaooahaz/cfveil
 
 go 1.24.1
 
