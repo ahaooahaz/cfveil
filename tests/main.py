@@ -1,6 +1,3 @@
-from utils.printa import printa
+import module1.pkg
 
-def func():
-    pass
-
-printa()
+module1.pkg.hello_world()

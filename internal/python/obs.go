@@ -5,9 +5,9 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/hex"
+	"fmt"
 	"io/fs"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/ahaooahaz/cfveil/internal/code"
@@ -19,7 +19,7 @@ func Process(in, out string, excludes []string) (err error) {
 	if err != nil {
 		return
 	}
-
+	p.obsFiles = make(map[string]*code.ObsFile)
 	excludesAbsPaths := make(map[string]bool)
 	for _, v := range excludes {
 		p := filepath.Join(root, v)
@@ -28,10 +28,14 @@ func Process(in, out string, excludes []string) (err error) {
 	logrus.WithField("excludesAbsPaths", excludesAbsPaths).Debugf("excludes abs paths")
 
 	files := []*code.File{}
-	obsFiles := []*code.ObsFile{}
+	obsFiles := make(map[string]*code.ObsFile)
 	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, ie error) error {
 		if ie != nil {
 			return ie
+		}
+
+		if strings.HasSuffix(path, "__init__.py") || strings.HasSuffix(path, "__pycache__") {
+			return nil
 		}
 
 		if _, ok := excludesAbsPaths[path]; ok {
@@ -46,14 +50,15 @@ func Process(in, out string, excludes []string) (err error) {
 			RelPath:  relPath,
 		}
 
-		if f.RelPath != "." && (f.IsDir || strings.HasSuffix(f.RelPath, ".py")) {
+		if (f.RelPath != ".") &&
+			(f.IsDir || strings.HasSuffix(f.RelPath, ".py")) {
 			files = append(files, f)
-			obsFiles = append(obsFiles, ToObsFile(f, out))
+			obsFile := ToObsFile(f, out)
+			obsFiles[obsFile.ImpName] = obsFile
 		}
 		return ie
 	})
 	logrus.WithField("obsfiles", obsFiles).Debugf("obsfiles")
-	p.obsFiles = obsFiles
 	for _, f := range obsFiles {
 		err = f.Write()
 		if err != nil {
@@ -90,25 +95,29 @@ func ToObsFile(f *code.File, dst string) (of *code.ObsFile) {
 }
 
 type python struct {
-	obsFiles []*code.ObsFile
+	obsFiles map[string]*code.ObsFile
 }
 
 var p = &python{}
 
 func (p *python) Obs(scanner *bufio.Scanner) (b *bytes.Buffer, err error) {
+	// import module_name
+	// import module_name as alias_name
+	// from module_name import function_name, ClassName, variable_name
+	// from module_name import *
+	// TODO:
+	// importlib.import_module('module_name')
+	// getattr(module, 'function_name')
 	lines := []string{}
-
 	for scanner.Scan() {
 		line := scanner.Text()
-
-		re := regexp.MustCompile(`^\s*(from|import)\b.*`)
-
-		if re.MatchString(strings.TrimSpace(line)) {
-			for _, x := range p.obsFiles {
-				line = strings.ReplaceAll(line, x.ImpName, x.ObsImpName)
-			}
+		modules, ok := parseModule(line)
+		if !ok {
+			lines = append(lines, line)
+			continue
 		}
-		lines = append(lines, line)
+		m := strings.Join(modules, ".")
+		fmt.Println(m)
 	}
 	b = bytes.NewBuffer([]byte(strings.Join(lines, "\n")))
 	return
